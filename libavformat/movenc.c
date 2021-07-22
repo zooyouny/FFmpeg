@@ -3411,12 +3411,26 @@ static int mov_write_trex_tag(AVIOContext *pb, MOVTrack *track)
     return 0;
 }
 
+static int mov_write_mehd_tag(AVIOContext *pb, uint32_t duration)
+{
+    avio_wb32(pb, 0x10); /* size */
+    ffio_wfourcc(pb, "mehd");
+    avio_wb32(pb, 0);   /* version & flags */
+    avio_wb32(pb, duration);   /* FragmentDuration */
+    return 0;
+}
+
+#define INSERT_MEHD 1
 static int mov_write_mvex_tag(AVIOContext *pb, MOVMuxContext *mov)
 {
     int64_t pos = avio_tell(pb);
     int i;
     avio_wb32(pb, 0x0); /* size */
     ffio_wfourcc(pb, "mvex");
+#if INSERT_MEHD
+    // the MEHD fragment duration set to 0 which causes Chrome to process it as a live stream.
+    mov_write_mehd_tag(pb, 0);
+#endif
     for (i = 0; i < mov->nb_streams; i++)
         mov_write_trex_tag(pb, &mov->tracks[i]);
     return update_size(pb, pos);
