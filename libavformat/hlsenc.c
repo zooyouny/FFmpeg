@@ -255,6 +255,7 @@ typedef struct HLSContext {
     char *headers;
     int has_default_key; /* has DEFAULT field of var_stream_map */
     int has_video_m3u8; /* has video stream m3u8 list */
+    int emsg;
 } HLSContext;
 
 static int strftime_expand(const char *fmt, char **dest)
@@ -945,6 +946,13 @@ static int hls_mux_init(AVFormatContext *s, VariantStream *vs)
         av_dict_set(&options, "sdt_period", period, AV_DICT_DONT_OVERWRITE);
         av_dict_set(&options, "pat_period", period, AV_DICT_DONT_OVERWRITE);
     }
+    if (hls->emsg > 0)
+    {
+        char emsg_size[21];
+        snprintf(emsg_size, sizeof(emsg_size), "%d", hls->emsg);
+        av_dict_set(&options, "emsg", emsg_size, AV_DICT_APPEND);
+    }
+
     ret = avformat_init_output(oc, &options);
     remaining_options = av_dict_count(options);
     av_dict_free(&options);
@@ -3151,6 +3159,7 @@ static const AVOption options[] = {
     {"timeout", "set timeout for socket I/O operations", OFFSET(timeout), AV_OPT_TYPE_DURATION, { .i64 = -1 }, -1, INT_MAX, .flags = E },
     {"ignore_io_errors", "Ignore IO errors for stable long-duration runs with network output", OFFSET(ignore_io_errors), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, E },
     {"headers", "set custom HTTP headers, can override built in default headers", OFFSET(headers), AV_OPT_TYPE_STRING, { .str = NULL }, 0, 0, E },
+    {"emsg", "insert emsg box", OFFSET(emsg), AV_OPT_TYPE_INT, {.i64 = 0 }, 0, INT_MAX, E},
     { NULL },
 };
 

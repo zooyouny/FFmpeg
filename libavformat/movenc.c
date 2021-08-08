@@ -108,6 +108,8 @@ static const AVOption options[] = {
     { "pts", NULL, 0, AV_OPT_TYPE_CONST, {.i64 = MOV_PRFT_SRC_PTS}, 0, 0, AV_OPT_FLAG_ENCODING_PARAM, "prft"},
     { "empty_hdlr_name", "write zero-length name string in hdlr atoms within mdia and minf atoms", offsetof(MOVMuxContext, empty_hdlr_name), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, AV_OPT_FLAG_ENCODING_PARAM},
     { "movie_timescale", "set movie timescale", offsetof(MOVMuxContext, movie_timescale), AV_OPT_TYPE_INT, {.i64 = MOV_TIMESCALE}, 1, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM},
+    { "mehd", "insert mehd into mvex", offsetof(MOVMuxContext, mehd), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, AV_OPT_FLAG_ENCODING_PARAM, 0},
+    { "emsg", "insert emsg box", offsetof(MOVMuxContext, emsg_size), AV_OPT_TYPE_INT, {.i64 = 0}, 0, INT_MAX, AV_OPT_FLAG_ENCODING_PARAM, 0},
     { NULL },
 };
 
@@ -3420,17 +3422,16 @@ static int mov_write_mehd_tag(AVIOContext *pb, uint32_t duration)
     return 0;
 }
 
-#define INSERT_MEHD 1
 static int mov_write_mvex_tag(AVIOContext *pb, MOVMuxContext *mov)
 {
     int64_t pos = avio_tell(pb);
     int i;
     avio_wb32(pb, 0x0); /* size */
     ffio_wfourcc(pb, "mvex");
-#if INSERT_MEHD
-    // the MEHD fragment duration set to 0 which causes Chrome to process it as a live stream.
-    mov_write_mehd_tag(pb, 0);
-#endif
+    // jyhwang : the MEHD fragment duration set to 0 which causes Chrome to process it as a live stream.
+    if (mov->mehd)
+        mov_write_mehd_tag(pb, 0);
+
     for (i = 0; i < mov->nb_streams; i++)
         mov_write_trex_tag(pb, &mov->tracks[i]);
     return update_size(pb, pos);
@@ -4682,6 +4683,26 @@ static int mov_write_moof_tag_internal(AVIOContext *pb, MOVMuxContext *mov,
     return update_size(pb, pos);
 }
 
+static int mov_write_emsg_tag(AVIOContext *pb, MOVMuxContext *mov, int emsg_data_size)
+{
+    const char* scheme_id_uri = "urn:4dreplay:cmaf:byterange";
+    int64_t pos = avio_tell(pb);
+
+    avio_wb32(pb, 0x0); // size
+    ffio_wfourcc(pb, "emsg");
+    avio_w8(pb, 1); // version
+    avio_wb24(pb, 0); // flags
+    avio_write(pb, scheme_id_uri, strlen(scheme_id_uri)); // scheme_id_uri
+    avio_w8(pb, 0); // null string
+    avio_w8(pb, 0); // value, empty string
+    avio_wb32(pb, 0); // timescale
+    avio_wb32(pb, 0); // presentation_time_delta
+    avio_wb32(pb, 0xFFFFFFFF); // evnet_duration
+    avio_wb32(pb, 0); // evnet_id
+    ffio_fill(pb, 0, emsg_data_size);
+
+    return update_size(pb, pos);}
+
 static int mov_write_sidx_tag(AVIOContext *pb,
                               MOVTrack *track, int ref_size, int total_sidx_size)
 {
@@ -4857,6 +4878,9 @@ static int mov_write_moof_tag(AVIOContext *pb, MOVMuxContext *mov, int tracks,
             mov_prune_frag_info(mov, tracks, mov->ism_lookahead + 1);
         }
     }
+
+    if (mov->emsg_size > 0)
+        mov_write_emsg_tag(pb, mov, mov->emsg_size);
 
     return mov_write_moof_tag_internal(pb, mov, tracks, moof_size);
 }
