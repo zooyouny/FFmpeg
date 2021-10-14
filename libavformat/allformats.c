@@ -112,6 +112,7 @@ extern const AVOutputFormat ff_codec2_muxer;
 extern const AVInputFormat  ff_codec2raw_demuxer;
 extern const AVOutputFormat ff_codec2raw_muxer;
 extern const AVInputFormat  ff_concat_demuxer;
+extern const AVInputFormat  ff_concatpipe_demuxer;
 extern const AVOutputFormat ff_crc_muxer;
 extern const AVInputFormat  ff_dash_demuxer;
 extern const AVOutputFormat ff_dash_muxer;

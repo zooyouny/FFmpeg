@@ -235,6 +235,14 @@ static int file_open(URLContext *h, const char *filename, int flags)
 
     h->is_streamed = !fstat(fd, &st) && S_ISFIFO(st.st_mode);
 
+    if (h->is_streamed)
+    {
+        int flags = fcntl(fd, F_GETFL, 0); 
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        flags = fcntl(fd, F_GETFL, 0); 
+        av_log(h, AV_LOG_DEBUG, "flags '%d'\n", flags);
+    }
+
     /* Buffer writes more than the default 32k to improve throughput especially
      * with networked file systems */
     if (!h->is_streamed && flags & AVIO_FLAG_WRITE)
