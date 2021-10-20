@@ -4690,7 +4690,7 @@ static int mov_write_emsg_tag(AVIOContext *pb, MOVMuxContext *mov, int emsg_data
 
     avio_wb32(pb, 0x0); // size
     ffio_wfourcc(pb, "emsg");
-    avio_w8(pb, 1); // version
+    avio_w8(pb, 0); // version
     avio_wb24(pb, 0); // flags
     avio_write(pb, scheme_id_uri, strlen(scheme_id_uri)); // scheme_id_uri
     avio_w8(pb, 0); // null string
@@ -4880,7 +4880,10 @@ static int mov_write_moof_tag(AVIOContext *pb, MOVMuxContext *mov, int tracks,
     }
 
     if (mov->emsg_size > 0)
-        mov_write_emsg_tag(pb, mov, mov->emsg_size);
+    {
+        int emsg_size = mov->tracks->entry == 1?64:2160;
+        mov_write_emsg_tag(pb, mov, emsg_size);
+    }
 
     return mov_write_moof_tag_internal(pb, mov, tracks, moof_size);
 }
