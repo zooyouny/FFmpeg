@@ -554,13 +554,24 @@ static int concat_read_packet(AVFormatContext *avf, AVPacket *pkt)
            av_ts2str(pkt->pts), av_ts2timestr(pkt->pts, &st->time_base),
            av_ts2str(pkt->dts), av_ts2timestr(pkt->dts, &st->time_base));
 
-    delta = av_rescale_q(cat->cur_file->start_time - cat->cur_file->file_inpoint,
-                         AV_TIME_BASE_Q,
-                         cat->avf->streams[pkt->stream_index]->time_base);
-    if (pkt->pts != AV_NOPTS_VALUE)
-        pkt->pts += delta;
-    if (pkt->dts != AV_NOPTS_VALUE)
-        pkt->dts += delta;
+    // SIDX earliest_presentation_time과 관련
+    // if (pkt->stream_index > 0)
+    // {
+    //     delta = av_rescale_q(-100000,
+    //                         AV_TIME_BASE_Q,
+    //                         cat->avf->streams[pkt->stream_index]->time_base);
+    //     if (pkt->pts != AV_NOPTS_VALUE)
+    //         pkt->pts += delta;
+    //     if (pkt->dts != AV_NOPTS_VALUE)
+    //         pkt->dts += delta;
+    // }
+    // delta = av_rescale_q(cat->cur_file->start_time - cat->cur_file->file_inpoint,
+    //                      AV_TIME_BASE_Q,
+    //                      cat->avf->streams[pkt->stream_index]->time_base);
+    // if (pkt->pts != AV_NOPTS_VALUE)
+    //     pkt->pts += delta;
+    // if (pkt->dts != AV_NOPTS_VALUE)
+    //     pkt->dts += delta;
     av_log(avf, AV_LOG_DEBUG, " -> pts:%s pts_time:%s dts:%s dts_time:%s\n",
            av_ts2str(pkt->pts), av_ts2timestr(pkt->pts, &st->time_base),
            av_ts2str(pkt->dts), av_ts2timestr(pkt->dts, &st->time_base));

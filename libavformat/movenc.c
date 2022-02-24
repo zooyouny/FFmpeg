@@ -4616,7 +4616,11 @@ static int mov_write_tfdt_tag(AVIOContext *pb, MOVTrack *track)
     ffio_wfourcc(pb, "tfdt");
     avio_w8(pb, 1); /* version */
     avio_wb24(pb, 0);
-    avio_wb64(pb, track->frag_start);
+    // tfdt BaseMediaDecodeTime과 관련
+    // if (track->track_id > 0)    
+    //     avio_wb64(pb, track->frag_start+track->timescale*0.3);
+    // else        
+        avio_wb64(pb, track->frag_start);
     return update_size(pb, pos);
 }
 
