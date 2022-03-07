@@ -234,7 +234,18 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
                         sps_seen = 1;
                     }
                 }
+            } else if (unit_type == H264_NAL_SEI) {
+                /* if there is a sei data, add it to packet side data */
+                uint8_t *pdata = av_packet_new_side_data(in, AV_PKT_DATA_CUSTOM_METADATA, nal_size);
+                if (!pdata) {
+                    ret = AVERROR(ENOMEM);
+                    av_log(s, AV_LOG_ERROR, "Failed to allocate sei side data\n");
+                    goto fail;
+                }
+                memcpy(pdata, buf, nal_size);
             }
+
+
 
             /* If this is a new IDR picture following an IDR picture, reset the idr flag.
              * Just check first_mb_in_slice to be 0 as this is the simplest solution.

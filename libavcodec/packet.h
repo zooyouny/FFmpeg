@@ -299,6 +299,12 @@ enum AVPacketSideDataType {
     AV_PKT_DATA_DYNAMIC_HDR10_PLUS,
 
     /**
+     * jyhwang :
+     * position swipe 정보를 저장할 METADATA
+     */
+    AV_PKT_DATA_CUSTOM_METADATA,
+
+    /**
      * The number of side data types.
      * This is not part of the public API/ABI in the sense that it may
      * change when new side data types are added.

@@ -156,6 +156,17 @@ static int hevc_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *out)
 
         nalu_type = (bytestream2_peek_byte(&gb) >> 1) & 0x3f;
 
+        /* if there is a sei data, add it to packet side data */
+        if (nalu_type == HEVC_NAL_SEI_PREFIX) {
+            uint8_t *pdata = av_packet_new_side_data(in, AV_PKT_DATA_CUSTOM_METADATA, nalu_size);
+            if (!pdata) {
+                ret = AVERROR(ENOMEM);
+                av_log(s, AV_LOG_ERROR, "Failed to allocate sei side data\n");
+                goto fail;
+            }
+            memcpy(pdata, gb.buffer, nalu_size);
+        }
+
         /* prepend extradata to IRAP frames */
         is_irap       = nalu_type >= 16 && nalu_type <= 23;
         add_extradata = is_irap && !got_irap;
