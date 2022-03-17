@@ -236,13 +236,14 @@ static int h264_mp4toannexb_filter(AVBSFContext *ctx, AVPacket *opkt)
                 }
             } else if (unit_type == H264_NAL_SEI) {
                 /* if there is a sei data, add it to packet side data */
-                uint8_t *pdata = av_packet_new_side_data(in, AV_PKT_DATA_CUSTOM_METADATA, nal_size);
+                size_t nalu_payload_size = nal_size - 1;
+                uint8_t *pdata = av_packet_new_side_data(in, AV_PKT_DATA_CUSTOM_METADATA, nalu_payload_size);
                 if (!pdata) {
                     ret = AVERROR(ENOMEM);
                     av_log(s, AV_LOG_ERROR, "Failed to allocate sei side data\n");
                     goto fail;
                 }
-                memcpy(pdata, buf, nal_size);
+                memcpy(pdata, buf + 1, nalu_payload_size);  // copy only nal unit payload
             }
 
 

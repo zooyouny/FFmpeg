@@ -471,6 +471,8 @@ static int cuvid_output_frame(AVCodecContext *avctx, AVFrame *frame)
 
     if (!cuvid_is_buffer_full(avctx)) {
         AVPacket pkt = {0};
+        uint8_t sd[CUSTOM_SIDEDATA_SIZE] = {0,};
+        size_t offset = 0;
         ret = ff_decode_get_packet(avctx, &pkt);
         if (ret < 0 && ret != AVERROR_EOF)
             return ret;
@@ -478,13 +480,13 @@ static int cuvid_output_frame(AVCodecContext *avctx, AVFrame *frame)
         for (int i = 0; i < pkt.side_data_elems; i++)
         {
             if (pkt.side_data[i].type == AV_PKT_DATA_CUSTOM_METADATA)
-            {
-                uint8_t buf[CUSTOM_SIDEDATA_SIZE] = {0,};
-                AV_WB32(buf, pkt.side_data[i].size);
-                memcpy(buf + 4, pkt.side_data[i].data, pkt.side_data[i].size);
-                av_fifo_generic_write(ctx->sd_queue, buf, CUSTOM_SIDEDATA_SIZE, NULL);
+            {                
+                AV_WB32(sd + offset, pkt.side_data[i].size);
+                memcpy(sd + offset + 4, pkt.side_data[i].data, pkt.side_data[i].size);
+                offset += pkt.side_data[i].size + 4;
             }
         }
+        av_fifo_generic_write(ctx->sd_queue, sd, CUSTOM_SIDEDATA_SIZE, NULL);
         av_packet_unref(&pkt);
         // cuvid_is_buffer_full() should avoid this.
         if (ret == AVERROR(EAGAIN))
@@ -501,8 +503,8 @@ static int cuvid_output_frame(AVCodecContext *avctx, AVFrame *frame)
         const AVPixFmtDescriptor *pixdesc;
         CuvidParsedFrame parsed_frame;
         CUVIDPROCPARAMS params;
-        uint8_t custom_sidedata[CUSTOM_SIDEDATA_SIZE] = {0,};
-        int sd_size = 0;
+        uint8_t custom_sidedata[CUSTOM_SIDEDATA_SIZE] = {0,};        
+        size_t sd_offset = 0;
         unsigned int pitch = 0;
         int offset = 0;
         int i;
@@ -647,17 +649,22 @@ static int cuvid_output_frame(AVCodecContext *avctx, AVFrame *frame)
             jyhwang:
             custom sidedata가 존재하면 SEI 타입으로 AVFrameSideData에 추가한다.
         */
-        sd_size = AV_RB32(custom_sidedata);
-        if (sd_size > 0)
-        {
-            AVFrameSideData *frame_sd = av_frame_new_side_data(frame, AV_FRAME_DATA_SEI_UNREGISTERED, sd_size);
+        while(1){
+            AVFrameSideData *frame_sd = NULL;
+            size_t sd_size = AV_RB32(custom_sidedata + sd_offset);
+            if (sd_size == 0)
+                break;
+
+            frame_sd = av_frame_new_side_data(frame, AV_FRAME_DATA_SEI_UNREGISTERED, sd_size);
             if (!frame_sd)
             {
                 ret = AVERROR(ENOMEM);
-                goto error;       
+                goto error;
             }
             memcpy(frame_sd->data, &custom_sidedata[4], sd_size);
             frame_sd->data = frame_sd->data;
+
+            sd_offset += sd_size + 4;
         }
     } else if (ctx->decoder_flushing) {
         ret = AVERROR_EOF;

@@ -1953,15 +1953,19 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, NvencSur
     NV_ENC_LOCK_BITSTREAM lock_params = { 0 };
     NVENCSTATUS nv_status;
     int res = 0;
+    size_t pkt_size = 0;
+    size_t nalu_hdr_size = 0;
 
     enum AVPictureType pict_type;
 
     switch (avctx->codec->id) {
     case AV_CODEC_ID_H264:
       slice_mode_data = ctx->encode_config.encodeCodecConfig.h264Config.sliceModeData;
+      nalu_hdr_size = 1;
       break;
     case AV_CODEC_ID_H265:
       slice_mode_data = ctx->encode_config.encodeCodecConfig.hevcConfig.sliceModeData;
+      nalu_hdr_size = 2;
       break;
     default:
       av_log(avctx, AV_LOG_ERROR, "Unknown codec name\n");
@@ -1987,14 +1991,37 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, NvencSur
         goto error;
     }
 
-    res = ff_get_encode_buffer(avctx, pkt, lock_params.bitstreamSizeInBytes, 0);
+    /* pass unregistered UserData SEI from in_ref to output pkt */
+    pkt_size = lock_params.bitstreamSizeInBytes;
+    for (int i = 0; i < tmpoutsurf->in_ref->nb_side_data; i++)
+    {
+        pkt_size += tmpoutsurf->in_ref->side_data[i]->size + 4 + nalu_hdr_size;
+    }    
+    res = ff_get_encode_buffer(avctx, pkt, pkt_size, 0);
 
     if (res < 0) {
         p_nvenc->nvEncUnlockBitstream(ctx->nvencoder, tmpoutsurf->output_surface);
         goto error;
     }
 
-    memcpy(pkt->data, lock_params.bitstreamBufferPtr, lock_params.bitstreamSizeInBytes);
+    {
+        size_t ofst = 0;
+        for (int i = 0; i < tmpoutsurf->in_ref->nb_side_data; i++)
+        {
+            AV_WB32(pkt->data + ofst, (uint32_t)1); // write nal size
+            
+            // write nal unit header
+            if (nalu_hdr_size == 1) { // for h.264
+                AV_WB8(pkt->data + ofst + 4, (uint8_t)0x06); 
+            } else if (nalu_hdr_size == 2) { // for hevc
+                AV_WB16(pkt->data + ofst + 4, (uint16_t)0x4E01);
+            }
+            
+            memcpy(pkt->data + ofst + 4 + nalu_hdr_size, tmpoutsurf->in_ref->side_data[i]->data, tmpoutsurf->in_ref->side_data[i]->size); // write nal unit payload
+            ofst += (tmpoutsurf->in_ref->side_data[i]->size + 4 + nalu_hdr_size);
+        }
+        memcpy(pkt->data + ofst, lock_params.bitstreamBufferPtr, lock_params.bitstreamSizeInBytes);
+    }
 
     nv_status = p_nvenc->nvEncUnlockBitstream(ctx->nvencoder, tmpoutsurf->output_surface);
     if (nv_status != NV_ENC_SUCCESS) {
