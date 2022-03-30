@@ -4699,7 +4699,7 @@ static int mov_write_emsg_tag(AVIOContext *pb, MOVMuxContext *mov, int emsg_data
     avio_write(pb, scheme_id_uri, strlen(scheme_id_uri)); // scheme_id_uri
     avio_w8(pb, 0); // null string
     avio_w8(pb, 0); // value, empty string
-    avio_wb32(pb, 0); // timescale
+    avio_wb32(pb, 1000000); // timescale
     avio_wb32(pb, 0); // presentation_time_delta
     avio_wb32(pb, 0xFFFFFFFF); // evnet_duration
     avio_wb32(pb, 0); // evnet_id
