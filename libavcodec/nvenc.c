@@ -1953,6 +1953,7 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, NvencSur
     NV_ENC_LOCK_BITSTREAM lock_params = { 0 };
     NVENCSTATUS nv_status;
     int res = 0;
+    int INSERT_SEI = 0;
     size_t pkt_size = 0;
     size_t nalu_hdr_size = 0;
 
@@ -1993,7 +1994,7 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, NvencSur
 
     /* pass unregistered UserData SEI from in_ref to output pkt */
     pkt_size = lock_params.bitstreamSizeInBytes;
-    for (int i = 0; i < tmpoutsurf->in_ref->nb_side_data; i++)
+    for (int i = 0; i < tmpoutsurf->in_ref->nb_side_data && INSERT_SEI; i++)
     {
         pkt_size += tmpoutsurf->in_ref->side_data[i]->size + 4 + nalu_hdr_size;
     }    
@@ -2004,6 +2005,7 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, NvencSur
         goto error;
     }
 
+    if (INSERT_SEI)
     {
         size_t ofst = 0;
         for (int i = 0; i < tmpoutsurf->in_ref->nb_side_data; i++)
@@ -2022,6 +2024,8 @@ static int process_output_surface(AVCodecContext *avctx, AVPacket *pkt, NvencSur
         }
         memcpy(pkt->data + ofst, lock_params.bitstreamBufferPtr, lock_params.bitstreamSizeInBytes);
     }
+    else
+        memcpy(pkt->data, lock_params.bitstreamBufferPtr, lock_params.bitstreamSizeInBytes);
 
     nv_status = p_nvenc->nvEncUnlockBitstream(ctx->nvencoder, tmpoutsurf->output_surface);
     if (nv_status != NV_ENC_SUCCESS) {
