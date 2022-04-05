@@ -192,7 +192,7 @@ int av_packet_add_side_data(AVPacket *pkt, enum AVPacketSideDataType type,
     for (i = 0; i < elems; i++) {
         AVPacketSideData *sd = &pkt->side_data[i];
 
-        if (sd->type == type) {
+        if (sd->type == type && type != AV_PKT_DATA_CUSTOM_METADATA) {
             av_free(sd->data);
             sd->data = data;
             sd->size = size;

@@ -107,7 +107,7 @@ typedef struct CuvidParsedFrame
     int is_deinterlacing;
 } CuvidParsedFrame;
 
-#define CUSTOM_SIDEDATA_SIZE 1024
+#define CUSTOM_SIDEDATA_SIZE 2048
 
 #define CHECK_CU(x) FF_CUDA_CHECK_DL(avctx, ctx->cudl, x)
 
