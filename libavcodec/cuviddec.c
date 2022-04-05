@@ -661,7 +661,7 @@ static int cuvid_output_frame(AVCodecContext *avctx, AVFrame *frame)
                 ret = AVERROR(ENOMEM);
                 goto error;
             }
-            memcpy(frame_sd->data, &custom_sidedata[4], sd_size);
+            memcpy(frame_sd->data, &custom_sidedata[sd_offset + 4], sd_size);
             frame_sd->data = frame_sd->data;
 
             sd_offset += sd_size + 4;
